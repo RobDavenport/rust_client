@@ -1,4 +1,6 @@
 const rust = import('./pkg/rust_client')
+const Stats = require('stats.js')
+
 const canvas = document.getElementById('rustCanvas')
 const gl = canvas.getContext('webgl', { antialias: true })
 
@@ -25,17 +27,20 @@ rust.then(r => {
     return
   }
 
+  let stats = new Stats()
+  document.body.appendChild( stats.dom )
+
   const dt = 1.0 / TICKS_PER_SECOND
 
-  let currentTime = Date.now()
+  let currentTime = performance.now()
   let accumulator = 0.0
 
   const client = new r.RustClient()
 
-  render = _ => {
-    window.requestAnimationFrame(render)
-    const newTime = Date.now()
-    const frameTime = newTime - currentTime
+  tick = _ => {
+    stats.begin()
+    const newTime = performance.now()
+    const frameTime = (newTime - currentTime) / 1000
     currentTime = newTime
 
     accumulator += frameTime
@@ -44,10 +49,11 @@ rust.then(r => {
       client.update(dt, window.innerWidth, window.innerHeight)
       accumulator -= dt
     }
-
+    window.requestAnimationFrame(tick)
     client.draw()
+    stats.end()
   }
 
   console.log('Begin rendering...')
-  render()
+  tick()
 })
