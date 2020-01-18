@@ -49,6 +49,7 @@ rust.then(r => {
       client.update(dt, window.innerWidth, window.innerHeight)
       accumulator -= dt
     }
+    updateWindow()
     window.requestAnimationFrame(tick)
     client.draw()
     stats.end()
