@@ -6,8 +6,8 @@ use super::super::common_funcs as cf;
 
 pub struct Color2D {
   program: WebGlProgram,
-  rect_verticies_arr_len: u32,
-  rect_vertices_buffer: WebGlBuffer,
+  vertex_buffer_length: usize,
+  gl_buffer: WebGlBuffer,
   u_color: WebGlUniformLocation,
   u_transform: WebGlUniformLocation
 }
@@ -20,7 +20,7 @@ impl Color2D {
       super::super::shaders::fragment::color_2d::SHADER
     ).unwrap();
 
-    let verts: [f32; 12] = [
+    let vertices: [f32; 12] = [
       0., 1.,
       0., 0.,
       1., 1.,
@@ -29,29 +29,33 @@ impl Color2D {
       1., 0.
     ];
 
-    let buffer = wasm_bindgen::memory()
+    let vertices_ptr_index = vertices.as_ptr() as u32 / 4;
+
+    let wasm_buffer = wasm_bindgen::memory()
       .dyn_into::<WebAssembly::Memory>()
       .unwrap()
       .buffer();
-    let verts_location = verts.as_ptr() as u32 / 4;
-    let verts_array = js_sys::Float32Array::new(&buffer).subarray(
-      verts_location,
-      verts_location + verts.len() as u32
+
+    let js_vertex_array = js_sys::Float32Array::new(&wasm_buffer).subarray(
+      vertices_ptr_index,
+      vertices_ptr_index + vertices.len() as u32
     );
-    let buffer_rect = gl.create_buffer().ok_or("failed to create buffer").unwrap();
-    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&buffer_rect));
-    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts_array, GL::STATIC_DRAW);
+
+    let gl_buffer = gl.create_buffer().ok_or("Failed to create buffer").unwrap();
+
+    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&gl_buffer));
+    gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &js_vertex_array, GL::STATIC_DRAW);
 
     Color2D {
       u_color: gl.get_uniform_location(&program, "uColor").unwrap(),
       u_transform: gl.get_uniform_location(&program, "uTransform").unwrap(),
-      rect_vertices_buffer: buffer_rect,
-      rect_verticies_arr_len: verts.len() as u32,
+      gl_buffer,
+      vertex_buffer_length: vertices.len(),
       program,
     }
   }
 
-  pub fn render(
+  pub fn draw(
     &self,
     gl: &WebGlRenderingContext,
     bottom: f32,
@@ -63,7 +67,7 @@ impl Color2D {
   ) {
     gl.use_program(Some(&self.program));
 
-    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.rect_vertices_buffer));
+    gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.gl_buffer));
     gl.vertex_attrib_pointer_with_i32(0, 2, GL::FLOAT, false, 0, 0);
     gl.enable_vertex_attrib_array(0);
 
@@ -71,7 +75,7 @@ impl Color2D {
       Some(&self.u_color),
       0.,
       0.5,
-      0.5,
+      0.25,
       1.
     );
 
@@ -90,6 +94,6 @@ impl Color2D {
     let transform_matrix = cf::multiply_matrix4(scale_matrix, translation_matrix);
     gl.uniform_matrix4fv_with_f32_array(Some(&self.u_transform), false, &transform_matrix);
 
-    gl.draw_arrays(GL::TRIANGLES, 0, (self.rect_verticies_arr_len / 2) as i32);
+    gl.draw_arrays(GL::TRIANGLES, 0, (self.vertex_buffer_length / 2) as i32);
   }
 }

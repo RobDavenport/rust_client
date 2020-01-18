@@ -1,7 +1,6 @@
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::*;
-use web_sys::WebGlRenderingContext as GL;
 
 pub fn initialize_webgl_context() -> Result<WebGlRenderingContext, JsValue> {
   let window = window().unwrap();
